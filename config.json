@@ -1,0 +1,8 @@
+{
+    "bookmarks": { "search": ["https://www.duckduckgo.com", "http://www.google.com"], "learn": ["https://www.wikipedia.org/", "https://www.dict.cc/", "https://www.mdbg.net/chinese/dictionary", "https://docs.ankiweb.net/"], "stuff": ["https://www.youtube.com", "https://apps.ankiweb.net/"] },
+    "fields_area_width_in_percent": 15,
+    "new_tab_default_page": "https://www.google.com",
+    "expand_bookmark_folders_by_default" : true,
+    "toggle_fields_shortcut": "F11",
+    "auto_focus_first_field_after_toggle_fields": true
+}
