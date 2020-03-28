@@ -172,16 +172,15 @@ class AddCardsBrowserTabs(QTabWidget):
                 } 
             """)
 
-
     def _add_tab(self, page=""):
         v = self._new_view(page)
-        self.insertTab(max(0, self.count() -1), v, "...")
+        self.insertTab(max(0, self.count() -1), v, "Loading...")
       
         return v
 
     def _new_view(self, page=""):
         view = AddCardsWebView(self)
-        view.urlChanged.connect(self._view_url_changed)
+        # view.urlChanged.connect(self._view_url_changed)
         id = str(int(time.time() * 1000))
         view.setWindowTitle(id)
         
@@ -227,8 +226,9 @@ class AddCardsBrowserTabs(QTabWidget):
     def _view_title_changed(self, title):
         self.setTabText(self.currentIndex(), title)
 
-    def _view_url_changed(self, url):
-        self.parent.update_url(url.toDisplayString())
+    def _view_url_changed(self, id, url):
+        if self.active_view().windowTitle() == id:
+            self.parent.update_url(url.toDisplayString())
 
     def load(self, qurl):
         # self.setTabText(self.currentIndex(), "Loading...")
@@ -265,7 +265,9 @@ class AddCardsWebView(QWebEngineView):
             self.loadStarted.connect(self.load_started)
             self.loadFinished.connect(self.load_finished)
             self.titleChanged.connect(self.view_title_changed)
+            self.urlChanged.connect(self.url_changed)
         self.settings().setAttribute(QWebEngineSettings.PluginsEnabled,True)
+        self.page().profile().setPersistentCookiesPolicy(QWebEngineProfile.NoPersistentCookies)
         self.parent = parent
 
     def view_title_changed(self, title):
@@ -275,7 +277,20 @@ class AddCardsWebView(QWebEngineView):
         self.parent.update_view_title(self.windowTitle(), self.title())
 
     def load_started(self):
-        self.parent.update_view_title(self.windowTitle(), "Loading ...")
+        self.parent.update_view_title(self.windowTitle(), "Loading...")
+
+    def url_changed(self, url):
+        self.parent._view_url_changed(self.windowTitle(), url)
+    
+
+    # def contextMenuEvent(self, event):
+
+
+    #     # menu = self.page().createStandardContextMenu()
+    #     menu = QMenu()
+    #     a = menu.addAction("Open Link in new Tab")
+    #         # a.triggered.connect(lambda: ))
+    #     menu.popup(event.globalPos()) 
 
     def createWindow(self, windowType):
         if windowType == QWebEnginePage.WebBrowserTab:
