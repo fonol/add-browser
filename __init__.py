@@ -26,6 +26,7 @@ from aqt.qt import *
 from aqt.editor import Editor
 from anki.hooks import wrap, addHook
 from aqt.addcards import AddCards
+from anki.utils import isMac
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -115,8 +116,8 @@ def display_browser(web):
         addcards.form.deckArea.setMinimumWidth(35)
         addcards.form.modelArea.setMinimumWidth(35)
 
-        addcards.form.deckArea.setMaximumWidth(125)
-        addcards.form.modelArea.setMaximumWidth(125)
+        # addcards.form.deckArea.setMaximumWidth(125)
+        # addcards.form.modelArea.setMaximumWidth(125)
         addcards.helpButton.setVisible(False)
 
     else:
@@ -160,24 +161,28 @@ def on_editor_did_init(editor):
             global browser, nightmode
             rendered = info[0]
             nightmode = info[1]
-            print(f"was rendered: {rendered}")
             if not rendered:
                 browser = None
                 if browser_displayed:
                     display_browser(editor.web)
 
+        if isMac:
+            btn_text = "www"
+        else:
+            btn_text = "&#127760;"
+
         editor.web.evalWithCallback("""
                     (() => {
                         let rendered = false;
                         if (!document.getElementById('toggleBrowserBtn')) {
-                            document.getElementById('topbutsleft').innerHTML += `<button id='toggleBrowserBtn' onclick='pycmd("toggle_browser")'>&#127760;</button> `; 
+                            document.getElementById('topbutsleft').innerHTML += `<button id='toggleBrowserBtn' onclick='pycmd("toggle_browser")'>%s</button> `; 
                         } else {
                             rendered = true;
                         }
                         let nightmode = document.body.classList.contains("nightMode");
                         return [rendered, nightmode];
                     })();
-                """, cb)
+                """ % btn_text, cb)
 
 def toggle_sidebar():
     if not browser_displayed:

@@ -21,6 +21,8 @@ import sip
 import time
 from aqt.qt import *
 from aqt import mw
+import aqt
+from anki.utils import isMac
 
 class AddCardsTabbedBrowser(QWidget):
     def __init__(self, flds, menu, flds_web, nightmode, parent=None):
@@ -38,7 +40,6 @@ class AddCardsTabbedBrowser(QWidget):
         self.toplayout = QHBoxLayout()
 
         toggle_btn = QPushButton("|-|")
-        toggle_btn.setMaximumWidth(25)
         toggle_btn.clicked.connect(self.toggle)
         toggle_btn.setToolTip(config["toggle_fields_shortcut"])
 
@@ -47,13 +48,10 @@ class AddCardsTabbedBrowser(QWidget):
         line.setFrameShadow(QFrame.Sunken)
 
         back_btn = QPushButton(" < ")
-        back_btn.setMaximumWidth(25)
         back_btn.clicked.connect(self.back)
         forward_btn = QPushButton(" > ")
-        forward_btn.setMaximumWidth(25)
         forward_btn.clicked.connect(self.forward)
         reload_btn = QPushButton(u"\u21BB")        
-        reload_btn.setMaximumWidth(25)
         reload_btn.clicked.connect(self.page_refresh)
         self.toplayout.addWidget(toggle_btn, 0)
         self.toplayout.addWidget(line, 0)
@@ -66,15 +64,21 @@ class AddCardsTabbedBrowser(QWidget):
         self.toplayout.addWidget(self.url, 2)
 
         zoom_out = QPushButton(" - ")
-        zoom_out.setMaximumWidth(20)
         zoom_out.clicked.connect(self.zoom_out)
         zoom_out.setShortcut("Ctrl+-")
         zoom_in = QPushButton(" + ")
-        zoom_in.setMaximumWidth(20)
         zoom_in.clicked.connect(self.zoom_in)
         zoom_in.setShortcut("Ctrl++")
         self.toplayout.addWidget(zoom_out)
         self.toplayout.addWidget(zoom_in)
+
+        if not isMac:
+            back_btn.setMaximumWidth(back_btn.fontMetrics().boundingRect(" < ").width() + 15)
+            toggle_btn.setMaximumWidth(toggle_btn.fontMetrics().boundingRect("|-|").width() + 15)
+            reload_btn.setMaximumWidth(reload_btn.fontMetrics().boundingRect(u"\u21BB").width() + 15)
+            forward_btn.setMaximumWidth(forward_btn.fontMetrics().boundingRect(" > ").width() + 15)
+            zoom_out.setMaximumWidth(zoom_out.fontMetrics().boundingRect(" - ").width() + 15)
+            zoom_in.setMaximumWidth(zoom_in.fontMetrics().boundingRect(" + ").width() + 15)
 
         menu = QPushButton("...")
         menu.clicked.connect(self.toggle_menu)
@@ -154,32 +158,52 @@ class AddCardsBrowserTabs(QTabWidget):
 
         self._add_tab()
         self.addTab(QWidget(), "+")
-        self.tabBar().tabButton(1, QTabBar.RightSide).resize(0,0)
+        if self.tabBar().tabButton(1, QTabBar.RightSide) is not None:
+            self.tabBar().tabButton(1, QTabBar.RightSide).resize(0,0)
 
         self.currentChanged.connect(self._tab_clicked)
         self.tabCloseRequested.connect(self._tab_close)
 
+        # maybe that fixes tabs being centered on mac
+        if isMac:
+            self.setStyleSheet("""
+                QTabWidget::tab-bar {
+                    left: 0; 
+                } 
+            """)
 
-    def _add_tab(self):
-        v = self._new_view()
+
+    def _add_tab(self, page=""):
+        v = self._new_view(page)
         self.insertTab(max(0, self.count() -1), v, "...")
+      
+        return v
 
-    def _new_view(self):
-        view = AddCardsWebView()
-        view.titleChanged.connect(self._view_title_changed)
+    def _new_view(self, page=""):
+        view = AddCardsWebView(self)
         view.urlChanged.connect(self._view_url_changed)
-        view.setWindowTitle(str(int(time.time() * 1000)))
+        id = str(int(time.time() * 1000))
+        view.setWindowTitle(id)
+        
         self.views.append(view)
-        view.load(self.start)
+        if page is not None and len(page) > 0:
+            view.load(self._to_qurl(page))
+        else:
+            view.load(self.start)
 
         return view
     
+    def _to_qurl(self, str):
+        qurl = QUrl(str)
+        qurl.setScheme("http")
+        return qurl
+
     def _tab_clicked(self, ix):
         if ix == self.count() - 1:
             self._add_tab()
             self.setCurrentIndex(ix)
         else:
-            self.parent.update_url(self.views[self.currentIndex()].url().toDisplayString())
+            self.parent.update_url(self.active_view().url().toDisplayString())
 
     def _tab_close(self, ix):
         if self.count() == 2:
@@ -195,6 +219,11 @@ class AddCardsBrowserTabs(QTabWidget):
         elif self.currentIndex() == self.count()- 1:
             self.setCurrentIndex(self.count() -2)
 
+    def update_view_title(self, id, title):
+        for ix in range(0, self.count()):
+            if self.widget(ix).windowTitle() == id:
+                self.setTabText(ix, title)
+
     def _view_title_changed(self, title):
         self.setTabText(self.currentIndex(), title)
 
@@ -202,6 +231,7 @@ class AddCardsBrowserTabs(QTabWidget):
         self.parent.update_url(url.toDisplayString())
 
     def load(self, qurl):
+        # self.setTabText(self.currentIndex(), "Loading...")
         self.active_view().load(qurl)
 
     def page_refresh(self):
@@ -228,10 +258,30 @@ class AddCardsBrowserTabs(QTabWidget):
         return self.views[self.currentIndex()]
 
 class AddCardsWebView(QWebEngineView):
-    def __init__(self, *args, **kwargs):
-        QWebEngineView.__init__(self, *args, **kwargs)
+    def __init__(self, parent=None):
+        QWebEngineView.__init__(self, parent)
+        if parent is not None:
+            # self.titleChanged.connect(self.view_title_changed)
+            self.loadStarted.connect(self.load_started)
+            self.loadFinished.connect(self.load_finished)
+            self.titleChanged.connect(self.view_title_changed)
         self.settings().setAttribute(QWebEngineSettings.PluginsEnabled,True)
-        self.tab = self.parent()
+        self.parent = parent
+
+    def view_title_changed(self, title):
+        self.parent.update_view_title(self.windowTitle(), title)
+
+    def load_finished(self, ok):
+        self.parent.update_view_title(self.windowTitle(), self.title())
+
+    def load_started(self):
+        self.parent.update_view_title(self.windowTitle(), "Loading ...")
+
+    def createWindow(self, windowType):
+        if windowType == QWebEnginePage.WebBrowserTab:
+            v = self.parent._add_tab(self.page().requestedUrl().toDisplayString())
+            return v
+        return super(AddCardsWebView, self).createWindow(windowType)
 
 class UrlInput(QLineEdit):
     def __init__(self, cb, parent=None):
