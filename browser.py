@@ -88,10 +88,8 @@ class AddCardsTabbedBrowser(QWidget):
 
         self.layout.addLayout(self.toplayout)
         self.layout.addWidget(self.tabs)
-        # self.layout.setSpacing(0)
         self.layout.setContentsMargins(0,4,4,4)
         self.setLayout(self.layout)
-        self.show()
 
     def load_url(self):
         url = self.url.text()
