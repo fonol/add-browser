@@ -5,5 +5,6 @@
     "expand_bookmark_folders_by_default" : true,
     "toggle_fields_shortcut": "F11",
     "auto_focus_first_field_after_toggle_fields": true,
-    "switch_fields_area_to_right": false
+    "switch_fields_area_to_right": false,
+    "bookmarks_area_width_in_percent": 10
 }

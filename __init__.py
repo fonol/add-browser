@@ -75,9 +75,7 @@ def display_browser(web):
         flds.setLayout(vbox)
         hbox.setSpacing(0)
         hbox.setContentsMargins(0, 0, 0, 0)
-        flds_width = config["fields_area_width_in_percent"]
-        flds_width = min(95, max(1, flds_width))
-
+       
         menu = QWidget()
         menu_vbox = QVBoxLayout()
 
@@ -103,14 +101,18 @@ def display_browser(web):
         menu.setVisible(False)
 
         browser = AddCardsTabbedBrowser(flds, menu, web, nightmode)
-        
+
+        flds_width = config["fields_area_width_in_percent"]
+        flds_width = min(95, max(1, flds_width))
+        bookmarks_width = config["bookmarks_area_width_in_percent"]
+ 
         if not config["switch_fields_area_to_right"]:
             hbox.addWidget(flds, flds_width)
-            hbox.addWidget(browser, 90-flds_width)
-            hbox.addWidget(menu, 10) 
+            hbox.addWidget(browser, 100-flds_width-bookmarks_width)
+            hbox.addWidget(menu, bookmarks_width) 
         else:
-            hbox.addWidget(menu, 10) 
-            hbox.addWidget(browser, 90-flds_width)
+            hbox.addWidget(menu, bookmarks_width) 
+            hbox.addWidget(browser, 100-flds_width-bookmarks_width)
             hbox.addWidget(flds, flds_width)
 
         addcards.setLayout(hbox)
