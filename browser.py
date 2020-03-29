@@ -84,12 +84,36 @@ class AddCardsTabbedBrowser(QWidget):
         menu.clicked.connect(self.toggle_menu)
         self.toplayout.addWidget(menu)
 
+
         self.tabs = AddCardsBrowserTabs(self)
+        
+        self._search_panel = SearchBar()
+        self.search_toolbar = QToolBar()
+        self.search_toolbar.addWidget(self._search_panel)
+        self.search_toolbar.hide()
+        self._search_panel.search_sig.connect(self.on_searched)
+        self._search_panel.close_sig.connect(self.search_toolbar.hide)
 
         self.layout.addLayout(self.toplayout)
         self.layout.addWidget(self.tabs)
+        self.layout.addWidget(self.search_toolbar)
+
         self.layout.setContentsMargins(0,4,4,4)
         self.setLayout(self.layout)
+
+        seq = config["search_on_site_shortcut"]
+        self.sc = QShortcut(QKeySequence(seq), self)
+        self.sc.activated.connect(self.search_toolbar.show)
+        self.sc.setEnabled(True)
+
+    @pyqtSlot(str, QWebEnginePage.FindFlag)
+    def on_searched(self, text, flag):
+        def after(found):
+            if text and not found:
+                self._search_panel.signal_not_found()
+            else:
+                self._search_panel.signal_found()
+        self.tabs.active_view().findText(text, flag, after)
 
     def load_url(self):
         url = self.url.text()
@@ -280,16 +304,6 @@ class AddCardsWebView(QWebEngineView):
     def url_changed(self, url):
         self.parent._view_url_changed(self.windowTitle(), url)
     
-
-    # def contextMenuEvent(self, event):
-
-
-    #     # menu = self.page().createStandardContextMenu()
-    #     menu = QMenu()
-    #     a = menu.addAction("Open Link in new Tab")
-    #         # a.triggered.connect(lambda: ))
-    #     menu.popup(event.globalPos()) 
-
     def createWindow(self, windowType):
         if windowType == QWebEnginePage.WebBrowserTab:
             v = self.parent._add_tab(self.page().requestedUrl().toDisplayString())
@@ -320,3 +334,69 @@ class UrlInput(QLineEdit):
             self.completer = QCompleter(self.suggestions, self)
             self.completer.setCaseSensitivity(Qt.CaseInsensitive)
             self.setCompleter(self.completer)
+
+class SuppressLineEdit(QLineEdit):
+    """
+        Don't propagate enter/return to accept the add dialog.
+    """
+    def __init__(self, parent=None):
+        QLineEdit.__init__(self, parent)
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Enter or e.key() == Qt.Key_Return:
+            e.accept()
+        else:
+            QLineEdit.keyPressEvent(self, e)
+
+
+class SearchBar(QWidget):
+   
+    def __init__(self, parent=None):
+        QWidget.__init__(self, parent)
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(0,0,0,0)
+        close_btn = QPushButton('Close')
+        next_btn = QPushButton('Next')
+        prev_btn = QPushButton('Previous')
+        self.case_btn = QPushButton('Aa', checkable=True)
+        self.input = SuppressLineEdit()
+        self.setFocusProxy(self.input)
+        close_btn.clicked.connect(self.close_sig)
+        next_btn.clicked.connect(self.on_search_forward)
+        prev_btn.clicked.connect(self.on_search_prev)
+        self.case_btn.clicked.connect(self.on_search_forward)
+        for btn in [self.case_btn, self.input, next_btn, prev_btn, close_btn]:
+            self.layout.addWidget(btn)
+            if isinstance(btn, QPushButton): 
+                btn.clicked.connect(self.setFocus)
+        self.close_sig.connect(self.input.clear)
+        self.input.textChanged.connect(self.on_search_forward)
+        self.input.returnPressed.connect(self.on_search_forward)
+
+        QShortcut(QKeySequence.FindNext, self, activated=next_btn.animateClick)
+        QShortcut(QKeySequence.FindPrevious, self, activated=prev_btn.animateClick)
+        QShortcut(QKeySequence(Qt.Key_Escape), self.input, activated=self.close_sig)
+
+    def signal_not_found(self):
+        self.input.setStyleSheet("color: red;")
+
+    def signal_found(self):
+        self.input.setStyleSheet("color: green;")
+
+    @pyqtSlot()
+    def on_search_prev(self):
+        self.on_search_forward(QWebEnginePage.FindBackward)
+
+    @pyqtSlot()
+    def on_search_forward(self, direction= QWebEnginePage.FindFlag()):
+        flag = direction
+        if self.case_btn.isChecked():
+            flag |= QWebEnginePage.FindCaseSensitively
+        self.search_sig.emit(self.input.text(), flag)
+
+    def showEvent(self, event):
+        super(SearchBar, self).showEvent(event)
+        self.setFocus(True)
+
+    search_sig = pyqtSignal(str, QWebEnginePage.FindFlag)
+    close_sig = pyqtSignal()
