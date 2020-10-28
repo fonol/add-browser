@@ -44,20 +44,12 @@ def display_browser(web):
 
     # first init
     if browser is None:
-        # layout = editor.web.parent().layout()
-        # web = layout.takeAt(0).widget()
-        # hbox = QHBoxLayout()
-
-        # browser = AddCardsTabbedBrowser()
-        # hbox.addWidget(web, 15)
-        # hbox.addWidget(browser, 85)
-        # layout.insertLayout(0, hbox, 1)
-
         config = mw.addonManager.getConfig(__name__)
 
         addcards = web.parent().parent()
+        if not isinstance(addcards, AddCards):
+            addcards = mw.app.activeWindow()
         assert(isinstance(addcards, AddCards))
-    
 
         layout = addcards.layout()
         hbox = QHBoxLayout()
@@ -119,6 +111,12 @@ def display_browser(web):
 
         shortcut = QShortcut(QKeySequence(config["toggle_fields_shortcut"]), browser)
         shortcut.activated.connect(toggle_sidebar)
+
+        shortcut = QShortcut(QKeySequence(config["zoom_in_shortcut"]), browser)
+        shortcut.activated.connect(zoom_in)
+
+        shortcut = QShortcut(QKeySequence(config["zoom_out_shortcut"]), browser)
+        shortcut.activated.connect(zoom_out)
 
         addcards.form.deckArea.setMinimumWidth(35)
         addcards.form.modelArea.setMinimumWidth(35)
@@ -195,6 +193,16 @@ def toggle_sidebar():
     if not browser_displayed:
         return
     browser.toggle()
+
+def zoom_out():
+    if not browser_displayed:
+        return
+    browser.zoom_out()
+
+def zoom_in():
+    if not browser_displayed:
+        return
+    browser.zoom_in()
 
 def expanded_on_bridge(self, cmd, _old):
     if cmd == "toggle_browser":
