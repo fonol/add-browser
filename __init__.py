@@ -22,6 +22,7 @@ import sys
 import re
 
 from aqt import mw, gui_hooks
+from aqt.utils import showInfo
 from aqt.qt import *
 from aqt.editor import Editor
 from anki.hooks import wrap, addHook
@@ -32,11 +33,15 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from .browser import AddCardsTabbedBrowser
 
-browser_displayed = False
-browser = None
-menu = None
+browser_displayed   = False
+browser             = None
+menu                = None
+shortcut_set        = False
 
-nightmode = False
+nightmode           = False
+
+
+
 
 def display_browser(web):
     global browser_displayed, browser, menu
@@ -161,7 +166,15 @@ def bookmark_clicked(item):
     browser.load(item.text(0))
 
 def on_editor_did_init(editor):
+    global shortcut_set
+
     if editor.addMode:
+        if not shortcut_set:
+            config = mw.addonManager.getConfig(__name__)
+            shortcut = QShortcut(QKeySequence(config["toggle_browser_shortcut"]), mw.app.activeWindow())
+            shortcut.activated.connect(toggle_browser)
+            shortcut_set = True
+    
         def cb(info):
             global browser, nightmode
             rendered = info[0]
@@ -194,6 +207,16 @@ def toggle_sidebar():
         return
     browser.toggle()
 
+def toggle_browser():
+    win = mw.app.activeWindow()
+    if hasattr(win, "editor"):
+        web = win.editor.web
+        if browser_displayed:
+            hide_browser(web)
+        else:
+            display_browser(web)
+    
+
 def zoom_out():
     if not browser_displayed:
         return
@@ -222,5 +245,6 @@ def on_keypress(addcards, evt, _old):
 def init_addon():
     gui_hooks.editor_did_load_note.append(on_editor_did_init)
     Editor.onBridgeCmd = wrap(Editor.onBridgeCmd, expanded_on_bridge, "around")
+   
 
 init_addon()

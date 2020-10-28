@@ -10,5 +10,6 @@
     "search_on_site_shortcut": "Ctrl+F",
     "address_bar_search_engine": "https://www.google.com/search?q={query}",
     "zoom_in_shortcut": "CTRL+Shift++",
-    "zoom_out_shortcut": "CTRL+Shift+-"
+    "zoom_out_shortcut": "CTRL+Shift+-",
+    "toggle_browser_shortcut": "CTRL+Shift+b"
 }
