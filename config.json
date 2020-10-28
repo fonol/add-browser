@@ -7,5 +7,8 @@
     "auto_focus_first_field_after_toggle_fields": true,
     "switch_fields_area_to_right": false,
     "bookmarks_area_width_in_percent": 10,
-    "search_on_site_shortcut": "Ctrl+F"
+    "search_on_site_shortcut": "Ctrl+F",
+    "address_bar_search_engine": "https://www.google.com/search?q={query}",
+    "zoom_in_shortcut": "CTRL+Shift++",
+    "zoom_out_shortcut": "CTRL+Shift+-"
 }
