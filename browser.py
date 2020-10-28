@@ -19,6 +19,8 @@
 
 import sip
 import time
+import re
+import urllib
 from aqt.qt import *
 from aqt import mw
 import aqt
@@ -28,22 +30,22 @@ class AddCardsTabbedBrowser(QWidget):
     def __init__(self, flds, menu, flds_web, nightmode, parent=None):
 
         QWidget.__init__(self, parent)
-        config = mw.addonManager.getConfig(__name__)
-        self.auto_focus_field = config["auto_focus_first_field_after_toggle_fields"]
+        self.config             = mw.addonManager.getConfig(__name__)
+        self.auto_focus_field   = self.config["auto_focus_first_field_after_toggle_fields"]
 
-        self.flds = flds
-        self.flds_web = flds_web
-        self.menu = menu
-        self.nightmode = nightmode
+        self.flds               = flds
+        self.flds_web           = flds_web
+        self.menu               = menu
+        self.nightmode          = nightmode
 
-        self.layout = QVBoxLayout()
-        self.toplayout = QHBoxLayout()
+        self.layout             = QVBoxLayout()
+        self.toplayout          = QHBoxLayout()
 
-        toggle_btn = QPushButton("|-|")
+        toggle_btn              = QPushButton("↔")
         toggle_btn.clicked.connect(self.toggle)
-        toggle_btn.setToolTip(config["toggle_fields_shortcut"])
+        toggle_btn.setToolTip(self.config["toggle_fields_shortcut"])
 
-        line = QFrame()
+        line                    = QFrame()
         line.setFrameShape(QFrame.HLine)
         line.setFrameShadow(QFrame.Sunken)
 
@@ -71,6 +73,7 @@ class AddCardsTabbedBrowser(QWidget):
         zoom_in.setShortcut("Ctrl++")
         self.toplayout.addWidget(zoom_out)
         self.toplayout.addWidget(zoom_in)
+        
 
         if not isMac:
             back_btn.setMaximumWidth(back_btn.fontMetrics().boundingRect(" < ").width() + 15)
@@ -101,10 +104,18 @@ class AddCardsTabbedBrowser(QWidget):
         self.layout.setContentsMargins(0,4,4,4)
         self.setLayout(self.layout)
 
-        seq = config["search_on_site_shortcut"]
+        seq = self.config["search_on_site_shortcut"]
         self.sc = QShortcut(QKeySequence(seq), self)
         self.sc.activated.connect(self.search_toolbar.show)
         self.sc.setEnabled(True)
+
+        self.url_re = re.compile(
+        r'^(?:http|ftp)s?://' 
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' 
+        r'localhost|' 
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' 
+        r'(?::\d+)?' 
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
     @pyqtSlot(str, QWebEnginePage.FindFlag)
     def on_searched(self, text, flag):
@@ -118,9 +129,13 @@ class AddCardsTabbedBrowser(QWidget):
     def load_url(self):
         url = self.url.text()
         if url is not None and len(url) > 0:
-            url = QUrl(url)
-            url.setScheme("http")
-            self.tabs.load(url)
+            if self.url_re.match(url):
+                qurl = QUrl(url)
+                qurl.setScheme("http")
+                self.tabs.load(qurl)
+            else:
+                url = self.config["address_bar_search_engine"].replace("{query}", urllib.parse.quote_plus(url))
+                self.tabs.load(QUrl(url))
 
     def update_url(self, url):
         self.url.setText(url)
@@ -299,6 +314,7 @@ class AddCardsWebView(QWebEngineView):
         self.parent.update_view_title(self.windowTitle(), self.title())
 
     def load_started(self):
+        return
         self.parent.update_view_title(self.windowTitle(), "Loading...")
 
     def url_changed(self, url):
@@ -334,6 +350,10 @@ class UrlInput(QLineEdit):
             self.completer = QCompleter(self.suggestions, self)
             self.completer.setCaseSensitivity(Qt.CaseInsensitive)
             self.setCompleter(self.completer)
+
+    def mousePressEvent(self, e):
+        self.selectAll()      
+
 
 class SuppressLineEdit(QLineEdit):
     """
